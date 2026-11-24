@@ -42,3 +42,13 @@ def test_split_sections_uses_headings_but_not_code_comments():
     assert all(s.page_title == "Path Parameters" for s in sections)
     assert "# not a heading" in sections[1].text
     assert sections[0].section_id == "en/tutorial/path-params#0"
+
+
+def test_inline_code_replaces_references_and_drops_missing_files():
+    from docs_agent.ingest import inline_code
+
+    md = "Before\n\n{* ../../docs_src/status/tutorial001.py hl[6] *}\n\n{* ../../docs_src/missing.py *}\n\nAfter"
+    out = inline_code(md, lambda p: "app.post('/items/', status_code=201)" if p.endswith("tutorial001.py") else None)
+    assert "```python\napp.post('/items/', status_code=201)\n```" in out
+    assert "missing" not in out and "{*" not in out
+    assert out.startswith("Before") and out.endswith("After")

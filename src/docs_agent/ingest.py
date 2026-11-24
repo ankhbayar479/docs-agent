@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -44,14 +45,25 @@ def list_pages(client: httpx.Client, settings: Settings) -> list[str]:
     return sorted(paths)
 
 
-# FastAPI's docs embed code by reference ({* ../../docs_src/x.py *}) and use
-# "/// note | Title" admonition fences. Neither carries prose worth indexing.
+# FastAPI's docs embed code by reference: {* ../../docs_src/x/tutorial001.py hl[6] *}.
+# The code itself lives in the repo's docs_src/ folder; inline_code() pastes it in.
 _CODE_INCLUDE = re.compile(r"\{\*.*?\*\}", re.S)
+_INCLUDE_PATH = re.compile(r"\{\*\s*(?:\.\./)*(docs_src/\S+?\.py)\b[^}]*\*\}")
 _ADMONITION = re.compile(r"^///.*$", re.M)
 _HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 _HEADING = re.compile(r"^(#{1,3})\s+(.*?)\s*(\{.*\})?\s*$")
 # Inline glossary tags (<dfn title="...">word</dfn>, <abbr ...>) wrap words in prose and headings.
 _INLINE_TAG = re.compile(r"</?(?:dfn|abbr|span|small)\b[^>]*>")
+
+
+def inline_code(md: str, load: Callable[[str], str | None]) -> str:
+    """Replace each code reference with the referenced file as a fenced block (or drop it if missing)."""
+
+    def sub(m: re.Match[str]) -> str:
+        code = load(m.group(1))
+        return f"```python\n{code.strip()}\n```" if code else ""
+
+    return _INCLUDE_PATH.sub(sub, md)
 
 
 def clean_markdown(md: str) -> str:
@@ -121,12 +133,23 @@ def ingest(settings: Settings | None = None) -> Path:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     with httpx.Client(timeout=30, follow_redirects=True) as client:
         paths = list_pages(client, settings)
+        code_cache: dict[str, str | None] = {}
+
+        def load_code(src_path: str) -> str | None:
+            if src_path not in code_cache:
+                r = client.get(RAW_URL.format(tag=settings.fastapi_tag, path=src_path))
+                code_cache[src_path] = r.text if r.status_code == 200 else None
+            return code_cache[src_path]
+
         sections: list[Section] = []
         for path in paths:
             resp = client.get(RAW_URL.format(tag=settings.fastapi_tag, path=path))
             resp.raise_for_status()
             lang, page_id = page_id_for(path)
-            sections.extend(split_sections(resp.text, lang=lang, page_id=page_id))
+            md = inline_code(resp.text, load_code)
+            sections.extend(split_sections(md, lang=lang, page_id=page_id))
+        found = sum(1 for v in code_cache.values() if v)
+        print(f"Inlined {found}/{len(code_cache)} referenced code files")
     with settings.corpus_path.open("w", encoding="utf-8") as f:
         for s in sections:
             f.write(json.dumps(asdict(s), ensure_ascii=False) + "\n")

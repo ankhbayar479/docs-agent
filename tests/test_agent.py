@@ -107,3 +107,52 @@ def test_baseline_passes_documents_and_makes_one_call(corpus, settings):
     result = build(corpus, settings, client).ask_baseline("cors origin")
     assert result.mode == "baseline" and result.tool_calls == 1
     assert client.requests[0]["documents"] and "tools" not in client.requests[0]
+
+
+def test_question_language_drives_search_default_and_answer_instruction(corpus, settings):
+    client = ScriptedClient(
+        [
+            NS(
+                message=NS(
+                    tool_calls=[tool_call("c1", "search_docs", query="cors origin")], tool_plan="", content=None
+                ),
+                usage=usage(1, 1),
+            ),
+            answer("CORSMiddleware を追加します。"),
+        ]
+    )
+    agent = build(corpus, settings, client)
+    result = agent.ask("別のオリジンからAPIを呼ぶには？")
+    assert agent.toolbox.default_lang == "ja"
+    assert result.pages_seen == ["ja/tutorial/cors"]
+    assert client.requests[0]["messages"][1]["content"].endswith("(Answer in Japanese.)")
+    assert client.requests[0]["thinking"] == {"type": settings.thinking}
+
+
+def test_read_section_with_a_page_id_returns_the_outline(corpus, settings):
+    agent = build(corpus, settings, ScriptedClient([]))
+    out = agent.toolbox.call("read_section", {"section_id": "en/tutorial/cors"})
+    assert out["sections"][0]["section_id"] == "en/tutorial/cors#0"
+
+
+def test_baseline_document_ids_are_unique_even_within_one_section(corpus, settings):
+    from tests.conftest import chunk
+
+    corpus = [*corpus, chunk("response-status-code", 0, 1, "More about status 201 status codes.")]
+    client = ScriptedClient([answer("Use status_code=201.")])
+    build(corpus, settings, client).ask_baseline("status 201", top_k=5)
+    ids = [d["id"] for d in client.requests[0]["documents"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_total_tool_calls_are_capped_even_when_requested_in_parallel(corpus, settings):
+    burst = [tool_call(f"c{i}", "search_docs", query="cors") for i in range(20)]
+    client = ScriptedClient(
+        [NS(message=NS(tool_calls=burst, tool_plan="", content=None), usage=usage(1, 1)), answer("Add CORSMiddleware.")]
+    )
+    result = build(corpus, settings, client).ask("cors?")
+    executed = [s for s in result.steps if "tool budget used up" not in s.result_preview]
+    assert len(executed) == settings.max_tool_calls
+    # Every requested call still gets a reply, so the conversation stays valid for the API.
+    tool_msgs = [m for m in client.requests[-1]["messages"] if isinstance(m, dict) and m.get("role") == "tool"]
+    assert len(tool_msgs) == 20

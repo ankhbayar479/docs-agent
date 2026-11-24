@@ -8,10 +8,45 @@ import sys
 from .config import PROJECT_ROOT, Settings, cohere_api_key
 
 
+class RetryingClient:
+    """Wraps the Cohere client: waits and retries when a rate limit (HTTP 429) is hit.
+
+    Trial keys allow about 20 calls per minute per endpoint, so an eval run hits the limit.
+    """
+
+    def __init__(self, client, attempts: int = 6, first_wait: float = 5.0):
+        self._client = client
+        self._attempts = attempts
+        self._first_wait = first_wait
+
+    def __getattr__(self, name):
+        method = getattr(self._client, name)
+        if name not in ("chat", "embed", "rerank"):
+            return method
+
+        def call(*args, **kwargs):
+            import time
+
+            from cohere.errors import TooManyRequestsError
+
+            wait = self._first_wait
+            for attempt in range(self._attempts):
+                try:
+                    return method(*args, **kwargs)
+                except TooManyRequestsError:
+                    if attempt == self._attempts - 1:
+                        raise
+                    print(f"  rate limited on {name}; waiting {wait:.0f}s", file=sys.stderr)
+                    time.sleep(wait)
+                    wait = min(wait * 2, 60)
+
+        return call
+
+
 def _client():
     import cohere
 
-    return cohere.ClientV2(api_key=cohere_api_key())
+    return RetryingClient(cohere.ClientV2(api_key=cohere_api_key()))
 
 
 def _agent(settings: Settings, *, rerank: bool = True):
@@ -85,7 +120,13 @@ def main(argv: list[str] | None = None) -> None:
         scores = []
         for case in cases:
             for mode in modes:
-                result = agent.ask(case.question) if mode == "agent" else agent.ask_baseline(case.question)
+                try:
+                    result = agent.ask(case.question) if mode == "agent" else agent.ask_baseline(case.question)
+                except Exception as exc:  # one failed API call must not lose the whole run
+                    from .agent import AgentResult
+
+                    result = AgentResult(question=case.question, answer=f"ERROR: {type(exc).__name__}", mode=mode)
+                    print(f"  error on {case.id} ({mode}): {str(exc)[-160:]}", file=sys.stderr)
                 s = score(case, result)
                 scores.append(s)
                 print(f"{'PASS' if s.passed else 'FAIL'}  {mode:8} {case.id:22} {s.tool_calls} calls {s.seconds}s")

@@ -21,7 +21,7 @@ class Settings:
     doc_section: str = "tutorial"
 
     # Cohere models. Override in .env if Cohere renames or retires one.
-    chat_model: str = field(default_factory=lambda: os.getenv("COHERE_CHAT_MODEL", "command-a-plus-05-2026"))
+    chat_model: str = field(default_factory=lambda: os.getenv("COHERE_CHAT_MODEL", "command-a-03-2025"))
     embed_model: str = field(default_factory=lambda: os.getenv("COHERE_EMBED_MODEL", "embed-v4.0"))
     rerank_model: str = field(default_factory=lambda: os.getenv("COHERE_RERANK_MODEL", "rerank-v3.5"))
 
@@ -35,7 +35,10 @@ class Settings:
 
     # Agent
     max_steps: int = 6
+    max_tool_calls: int = 8  # a model can request several tools in one step; cap the total too
     temperature: float = 0.2
+    # Cohere's newer Command models "think" before replying by default: ~12 s instead of ~1 s per call.
+    thinking: str = field(default_factory=lambda: os.getenv("COHERE_THINKING", "disabled"))
 
     data_dir: Path = field(default_factory=lambda: Path(os.getenv("DOCS_AGENT_DATA", PROJECT_ROOT / "data")))
 

@@ -31,3 +31,11 @@ def test_overlong_paragraph_is_hard_split():
     # Nothing is lost: every chunk (minus its overlap prefix) concatenates back to the original.
     rebuilt = chunks[0] + "".join(c.split("\n\n", 1)[1] for c in chunks[1:])
     assert rebuilt == text
+
+
+def test_detect_lang():
+    from docs_agent.text import detect_lang
+
+    assert detect_lang("How do I return 201?") == "en"
+    assert detect_lang("ステータスコード201を返すには？") == "ja"
+    assert detect_lang("CORSMiddleware") == "en"

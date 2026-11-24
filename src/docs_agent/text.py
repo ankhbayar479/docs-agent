@@ -9,6 +9,14 @@ _LATIN = re.compile(r"[a-z0-9_]+")
 _CJK_RUN = re.compile(r"[぀-ヿ㐀-鿿ｦ-ﾟ]+")
 
 
+_KANA = re.compile(r"[\u3040-\u30ff]")
+
+
+def detect_lang(text: str) -> str:
+    """'ja' if the text contains hiragana or katakana, else 'en'. Decided in code, not left to the model."""
+    return "ja" if _KANA.search(text) else "en"
+
+
 def tokenize(text: str) -> list[str]:
     """Words for Latin script, overlapping character bigrams for Japanese.
 

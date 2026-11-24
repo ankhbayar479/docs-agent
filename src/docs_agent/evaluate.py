@@ -18,6 +18,7 @@ ABSTAIN_PATTERNS = [
     r"\bnot (?:covered|cover|include|mention|discuss)",
     r"\bdoes(?:n't| not) (?:cover|include|mention|discuss|say)",
     r"\bno information\b",
+    r"\b(?:couldn't|could not|can't|cannot) find\b",
     r"\boutside (?:the )?(?:scope|tutorial)",
     r"記載(?:が|は)?(?:ありません|ない)",
     r"扱われていません|含まれていません|見つかりません",

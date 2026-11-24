@@ -29,3 +29,7 @@ def test_score_and_summary():
     assert [s.passed for s in scores] == [True, False]
     summary = summarize(scores)
     assert summary["agent"]["pass_rate"] == 100.0 and summary["baseline"]["pass_rate"] == 0.0
+
+
+def test_abstain_detects_could_not_find():
+    assert abstained("I'm sorry, I couldn't find any information about Kubernetes autoscaling.")

@@ -22,7 +22,7 @@ TOOL_SPECS: list[dict[str, Any]] = [
                     "lang": {
                         "type": "string",
                         "enum": ["en", "ja", "any"],
-                        "description": "Restrict to one language edition. Default: any.",
+                        "description": "Language edition. Default: the question's language. Use any for both.",
                     },
                     "top_k": {"type": "integer", "description": "Number of passages, 1-8. Default 5."},
                 },
@@ -62,16 +62,19 @@ SNIPPET_CHARS = 700
 class ToolBox:
     def __init__(self, retriever: Retriever):
         self.retriever = retriever
+        # Set per question by the agent: searches default to the question's language.
+        self.default_lang = "any"
 
     def call(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         try:
             if name == "search_docs":
-                lang = args.get("lang") or "any"
+                lang = args.get("lang") or self.default_lang
                 top_k = max(1, min(int(args.get("top_k") or 5), 8))
                 hits = self.retriever.search(str(args["query"]), lang=None if lang == "any" else lang, top_k=top_k)
                 return {
                     "results": [
                         {
+                            "chunk_id": h.chunk.chunk_id,
                             "page_id": h.chunk.page_id,
                             "section_id": h.chunk.section_id,
                             "title": f"{h.chunk.page_title} > {h.chunk.section_title}",
@@ -88,7 +91,14 @@ class ToolBox:
                     return {"error": f"unknown page_id {args['page_id']!r}; use an id returned by search_docs"}
                 return {"sections": [{"section_id": sid, "title": t} for sid, t in outline]}
             if name == "read_section":
-                text = self.retriever.section_text(str(args["section_id"]))
+                sid = str(args["section_id"])
+                if "#" not in sid and self.retriever.outline(sid):
+                    # The model passed a page_id: show the page's sections instead of failing.
+                    return {
+                        "note": "That is a page_id. Pick a section_id from this list and call read_section again.",
+                        "sections": [{"section_id": s, "title": t} for s, t in self.retriever.outline(sid)],
+                    }
+                text = self.retriever.section_text(sid)
                 if text is None:
                     return {"error": f"unknown section_id {args['section_id']!r}"}
                 chunk = self.retriever.by_section[str(args["section_id"])][0]
