@@ -1,0 +1,107 @@
+# Evaluation set: questions about the FastAPI tutorial (v0.165.0), English and Japanese.
+#
+# Scoring is deterministic, done in code, not by an LLM judge:
+#   pages:   the answer's evidence must come from one of these pages (either language edition).
+#   facts:   every group must appear in the answer; each group lists accepted alternatives.
+#   abstain: the tutorial does not cover this; the agent should say so instead of inventing.
+
+- id: en-status-201
+  lang: en
+  question: How do I make a POST endpoint return HTTP 201 instead of 200?
+  pages: [tutorial/response-status-code]
+  facts: [[status_code], ["201"]]
+
+- id: en-query-maxlen
+  lang: en
+  question: How can I limit a string query parameter to at most 50 characters?
+  pages: [tutorial/query-params-str-validations]
+  facts: [[Query], [max_length]]
+
+- id: en-exclude-unset
+  lang: en
+  question: How do I leave out fields that were never set (only defaults) from the JSON response?
+  pages: [tutorial/response-model]
+  facts: [[response_model_exclude_unset]]
+
+- id: en-background
+  lang: en
+  question: I want to send an email after the response is returned, without making the client wait. How?
+  pages: [tutorial/background-tasks]
+  facts: [[BackgroundTasks], [add_task]]
+
+- id: en-cors
+  lang: en
+  question: My React app on localhost:3000 is blocked when calling my API. What do I add to FastAPI?
+  pages: [tutorial/cors]
+  facts: [[CORSMiddleware], [allow_origins]]
+
+- id: en-upload
+  lang: en
+  question: For file uploads, when should I use UploadFile instead of bytes?
+  pages: [tutorial/request-files]
+  facts: [[UploadFile], [memory, spooled, large, disk]]
+
+- id: en-routers
+  lang: en
+  question: How do I split my path operations across several files and combine them in the main app?
+  pages: [tutorial/bigger-applications]
+  facts: [[APIRouter], [include_router]]
+
+- id: en-yield-cleanup
+  lang: en
+  question: In a dependency, how do I close a database session after the request is finished?
+  pages: [tutorial/dependencies/dependencies-with-yield]
+  facts: [[yield]]
+
+- id: en-oauth2-token-url
+  lang: en
+  question: In the OAuth2 password flow tutorial, which class declares the security scheme, and what is its tokenUrl for?
+  pages: [tutorial/security/first-steps]
+  facts: [[OAuth2PasswordBearer], [tokenUrl]]
+
+- id: en-enum-path
+  lang: en
+  question: How do I restrict a path parameter to a fixed set of allowed values?
+  pages: [tutorial/path-params]
+  facts: [[Enum]]
+
+- id: ja-status-201
+  lang: ja
+  question: POSTエンドポイントで200ではなくステータスコード201を返すにはどうすればいいですか？
+  pages: [tutorial/response-status-code]
+  facts: [[status_code], ["201"]]
+
+- id: ja-query-maxlen
+  lang: ja
+  question: 文字列のクエリパラメータを最大50文字に制限するにはどうすればいいですか？
+  pages: [tutorial/query-params-str-validations]
+  facts: [[max_length]]
+
+- id: ja-background
+  lang: ja
+  question: レスポンスを返した後にメール送信の処理を実行したいです。クライアントを待たせない方法は？
+  pages: [tutorial/background-tasks]
+  facts: [[BackgroundTasks]]
+
+- id: ja-cors
+  lang: ja
+  question: 別のオリジンで動くフロントエンドからAPIを呼び出すとブロックされます。FastAPIで何を設定すればいいですか？
+  pages: [tutorial/cors]
+  facts: [[CORSMiddleware]]
+
+- id: ja-routers
+  lang: ja
+  question: アプリのパスオペレーションを複数のファイルに分割して、メインのアプリにまとめるにはどうすればいいですか？
+  pages: [tutorial/bigger-applications]
+  facts: [[APIRouter], [include_router]]
+
+- id: ja-yield-cleanup
+  lang: ja
+  question: 依存関係で、リクエストの処理が終わった後にデータベースセッションを閉じるにはどうすればいいですか？
+  pages: [tutorial/dependencies/dependencies-with-yield]
+  facts: [[yield]]
+
+- id: en-out-of-scope
+  lang: en
+  question: How do I configure Kubernetes horizontal pod autoscaling for my FastAPI app?
+  abstain: true

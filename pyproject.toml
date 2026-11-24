@@ -1,0 +1,43 @@
+[project]
+name = "docs-agent"
+version = "0.1.0"
+description = "A tool-using RAG agent over the FastAPI tutorial (English + Japanese), built on Cohere, with a deterministic evaluation."
+readme = "README.md"
+authors = [
+    { name = "Ankhbayar Naranbat", email = "ankhbayar479@gmail.com" }
+]
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "cohere>=7.3.2",
+    "httpx>=0.28.1",
+    "numpy>=2.5.5",
+    "python-dotenv>=1.2.4",
+    "pyyaml>=6.0.4",
+    "rank-bm25>=0.2.2",
+]
+
+[project.scripts]
+docs-agent = "docs_agent.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # full-width Japanese punctuation in strings is intentional
