@@ -80,12 +80,29 @@ Chat `command-a-03-2025`, embeddings `embed-v4.0`, rerank `rerank-v3.5`, 17 ques
 ### What the evaluation taught me
 
 1. **Data quality beat model cleverness.** In run 1 every failure had the right page but an incomplete answer: no `status_code=201`, no `include_router`. FastAPI's docs pull code from separate files (`{* ../../docs_src/... *}`), and my ingest step dropped those references. Inlining the 183 referenced files raised both modes from 65–71% to 94%. Retrieval was never the problem; the evaluation showed that in one run.
-2. **On single-lookup questions the agent is not worth its cost.** Both modes reach 94.1%, but the agent uses ~2.9× the input tokens and about twice the time. An agent should earn its extra calls on questions that need more than one lookup; a multi-hop question set is the next step.
-3. **Operational lessons from real runs:**
+2. **On single-lookup questions the agent is not worth its cost.** Both modes reach 94.1%, but the agent uses ~2.9× the input tokens and about twice the time. (This run used agent v1, before the changes below.)
+3. **On harder questions, the first agent was worse than plain RAG, and instructions did not fix it; code did.** See the hard set below.
+4. **Operational lessons from real runs:**
    - Cohere's newest model "thinks" before every reply by default: 12 s for a one-sentence answer vs 0.7 s with thinking off. Thinking is off by default here (`COHERE_THINKING`).
    - One run made 23 tool calls on one question, because a model can request several tools in a single step. Total tool calls are now capped (8), not just steps.
    - Two languages need the language decided in code: an English question once got a Japanese answer after the first search returned Japanese pages. Searches now default to the question's language and the answer language is stated explicitly.
    - Trial keys allow ~20 calls/minute per endpoint, so the client waits and retries on HTTP 429, and one failed call no longer aborts an evaluation run.
+
+### Hard question set
+
+[`eval/questions-hard.yaml`](eval/questions-hard.yaml): 8 questions (6 English, 2 Japanese) that need several details from different sections, and one that needs two different pages. The single-shot baseline scored 87.5% in both of its runs (1 call, ~3,100 input tokens).
+
+| Agent version | Pass rate | Tool calls | Input tokens | Report |
+|---|---|---|---|---|
+| v1: the model writes its own first query | 62.5% | 1.9 | ~8,800 | [run 1](eval/results-hard-run1.md) |
+| v2: + "coverage check" instructions in the prompt | 37.5% | 2.1 | ~9,100 | [run 2](eval/results-hard-run2-coverage-prompt.md) |
+| **v3: + first search done in code, with the full question** | **87.5%** | **1.4** | **~5,600** | [run 3](eval/results-hard-run3-seeded-search.md) |
+
+- **v1 failed by stopping early.** It wrote a narrow query, found the file-upload page, and answered "no extra package is required" from memory, while the baseline saw five snippets from three pages and got `python-multipart` right. The agent was seeing *less* context than the baseline.
+- **v2 asked the model to check that every part of the question was supported before answering. It did not change the behaviour** (still about 2 calls, then answer); with 8 questions, part of the drop is run-to-run noise.
+- **v3 fixed it in code:** the first search always uses the full question, so the agent starts with exactly the baseline's evidence and then decides what else to look up. It matches the baseline with fewer calls and tokens than v1.
+- **It still does not beat the baseline.** The one question that needs two pages (`hard-router-201`: router dependencies *and* status 201) fails in every version and in the baseline; nothing searches a second time for the missing part. Next step: split the question into parts in code and search for each.
+- One question has a flaw I left in place rather than rewrite after seeing results: "how long do access tokens last by default" can be read as 15 minutes (the helper's default) or 30 (the setting the tutorial uses); answers saying 15 are scored as failures.
 
 ## Quick start
 
@@ -122,7 +139,9 @@ tests/           offline tests with scripted fake clients
 
 - Questions are about one product's docs; a broader set would need more pages and harder multi-hop questions.
 - Fact checks are string matches: strict and reproducible, but they can miss a correct answer phrased differently.
-- Next: a multi-hop question set (where an agent should beat single-shot RAG), streaming answers with citations, and caching query embeddings.
+- The eval sets are small (17 + 8 questions), so differences of one or two questions are within run-to-run noise.
+- The 17-question results above were measured with agent v1; v3 has not been re-run on them yet (trial-key call limits).
+- Next: question decomposition for multi-page questions, streaming answers with citations, and caching query embeddings.
 
 ## License
 

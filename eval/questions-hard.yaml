@@ -1,0 +1,52 @@
+# Harder questions: several details from different sections, or two different pages.
+# Same deterministic scoring as questions.yaml. `pages_all: true` means every listed page
+# must be found (either language edition), not just one of them.
+
+- id: hard-jwt
+  lang: en
+  question: In the JWT tutorial, which library hashes the passwords, which algorithm signs the tokens, and how long do access tokens last by default?
+  pages: [tutorial/security/oauth2-jwt]
+  facts: [[pwdlib], [HS256], ["30"]]
+
+- id: hard-jwt-ja
+  lang: ja
+  question: JWTのチュートリアルで、パスワードのハッシュに使うライブラリ、トークンの署名アルゴリズム、アクセストークンのデフォルトの有効期限はそれぞれ何ですか？
+  pages: [tutorial/security/oauth2-jwt]
+  facts: [[pwdlib], [HS256], ["30"]]
+
+- id: hard-router-201
+  lang: en
+  question: I'm splitting my app into routers. When I include one router, how do I require a token-header dependency for all of its routes, and how do I make its POST route return 201?
+  pages: [tutorial/bigger-applications, tutorial/response-status-code]
+  pages_all: true
+  facts: [[include_router], [dependencies], [status_code], ["201"]]
+
+- id: hard-patch
+  lang: en
+  question: How do I write a PATCH endpoint that only changes the fields the client actually sent?
+  pages: [tutorial/body-updates]
+  facts: [[exclude_unset], [model_dump]]
+
+- id: hard-file-form
+  lang: en
+  question: My endpoint receives an uploaded file together with normal form fields. Which parameter types do I use, and what extra package has to be installed?
+  pages: [tutorial/request-forms-and-files]
+  facts: [[File, UploadFile], [Form], [python-multipart]]
+
+- id: hard-file-form-ja
+  lang: ja
+  question: ファイルのアップロードと通常のフォームフィールドを同時に受け取るエンドポイントでは、どのパラメータの型を使い、追加で何のパッケージをインストールする必要がありますか？
+  pages: [tutorial/request-forms-and-files]
+  facts: [[File, UploadFile], [Form], [python-multipart]]
+
+- id: hard-hide-param
+  lang: en
+  question: How can I keep accepting a query parameter but hide it from the generated API documentation?
+  pages: [tutorial/query-params-str-validations]
+  facts: [[include_in_schema]]
+
+- id: hard-deprecated
+  lang: en
+  question: How do I mark an endpoint as deprecated in the docs and also give it a summary and a description?
+  pages: [tutorial/path-operation-configuration]
+  facts: [[deprecated], [summary], [description]]

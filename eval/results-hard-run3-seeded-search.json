@@ -1,0 +1,138 @@
+{
+  "meta": {
+    "chat_model": "command-a-03-2025",
+    "embed_model": "embed-v4.0",
+    "rerank_model": "rerank-v3.5",
+    "fastapi_tag": "0.165.0",
+    "cases": 8
+  },
+  "summary": {
+    "agent": {
+      "cases": 8,
+      "pass_rate": 87.5,
+      "pass_rate_en": 83.3,
+      "pass_rate_ja": 100.0,
+      "facts_correct": 87.5,
+      "right_page_found": 87.5,
+      "abstained_when_uncovered": 0.0,
+      "avg_tool_calls": 1.38,
+      "median_seconds": 6.58,
+      "avg_input_tokens": 5615,
+      "avg_output_tokens": 442
+    }
+  },
+  "cases": [
+    {
+      "id": "hard-jwt",
+      "mode": "agent",
+      "lang": "en",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 1,
+      "input_tokens": 4082,
+      "output_tokens": 166,
+      "seconds": 3.13,
+      "answer": "In the JWT tutorial, the `pwdlib` library hashes the passwords, the `HS256` algorithm signs the tokens, and access tokens last 30 minutes by default.\n\n```python\nfrom pwdlib import PasswordHash\n\nALGORITHM = \"HS256\"\nACCESS_TOKEN_EXPIRE_MINUTES = 30\n```"
+    },
+    {
+      "id": "hard-jwt-ja",
+      "mode": "agent",
+      "lang": "ja",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 1,
+      "input_tokens": 4371,
+      "output_tokens": 448,
+      "seconds": 7.1,
+      "answer": "JWTのチュートリアルでは、パスワードのハッシュ化に`pwdlib`ライブラリを使用し、トークンの署名アルゴリズムとして`HS256`を指定しています。アクセストークンのデフォルトの有効期限は30分です。\n\n```python\nfrom datetime import UTC, datetime, timedelta\nfrom typing import Annotated\n\nimport jwt\nfrom fastapi import Depends, FastAPI, HTTPException, status\nfrom fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm\nfrom jwt.exceptions import InvalidTokenError\nfrom pwdlib import PasswordHash\nfrom pydantic import BaseModel\n\n# to get a string like this run:\n# openssl rand -hex 32\nSECRET_KEY = \"09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7\"\nALGORITHM = \"HS256\"\nACCESS_TOKEN_EXPIRE_MINUTES = 30\n```"
+    },
+    {
+      "id": "hard-router-201",
+      "mode": "agent",
+      "lang": "en",
+      "passed": false,
+      "facts_ok": false,
+      "evidence_ok": false,
+      "abstain_ok": null,
+      "tool_calls": 2,
+      "input_tokens": 9205,
+      "output_tokens": 357,
+      "seconds": 10.75,
+      "answer": "To require a token-header dependency for all routes in a router, you can add it to the `APIRouter` as follows:\n\n```python\nfrom fastapi import APIRouter, Depends\n\nfrom ..dependencies import get_token_header\n\nrouter = APIRouter(\n    dependencies=[Depends(get_token_header)],\n)\n```\n\nTo make a POST route return 201, you can use the `status_code` parameter of the `HTTPException` class:\n\n```python\nfrom fastapi import HTTPException\n\n@router.post(\"/\")\nasync def create_item():\n    # Your code here\n    raise HTTPException(status_code=201)\n```"
+    },
+    {
+      "id": "hard-patch",
+      "mode": "agent",
+      "lang": "en",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 2,
+      "input_tokens": 8302,
+      "output_tokens": 831,
+      "seconds": 9.29,
+      "answer": "To write a PATCH endpoint that only changes the fields the client actually sent, you can use the `exclude_unset` parameter in Pydantic's model's `.model_dump()`.\n\nHere's an example:\n\n```python\nfrom fastapi import FastAPI\nfrom fastapi.encoders import jsonable_encoder\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass Item(BaseModel):\n    name: str | None = None\n    description: str | None = None\n    price: float | None = None\n    tax: float = 10.5\n    tags: list[str] = []\n\nitems = {\n    \"foo\": {\"name\": \"Foo\", \"price\": 50.2},\n    \"bar\": {\"name\": \"Bar\", \"description\": \"The bartenders\", \"price\": 62, \"tax\": 20.2},\n    \"baz\": {\"name\": \"Baz\", \"description\": None, \"price\": 50.2, \"tax\": 10.5, \"tags\": []},\n}\n\n@app.get(\"/items/{item_id}\", response_model=Item)\nasync def read_item(item_id: str):\n    return items[item_id]\n\n@app.patch(\"/items/{item_id}\")\nasync def update_item(item_id: str, item: Item) -> Item:\n    stored_item_data = items[item_id]\n    stored_item_model = Item(**stored_item_data)\n    update_data = item.model_dump(exclude_unset=True)\n    updated_item = stored_item_model.model_copy(update=update_data)\n    items[item_id] = jsonable_encoder(updated_item)\n    return updated_item\n```"
+    },
+    {
+      "id": "hard-file-form",
+      "mode": "agent",
+      "lang": "en",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 1,
+      "input_tokens": 3161,
+      "output_tokens": 346,
+      "seconds": 4.36,
+      "answer": "Use the `File` and `Form` parameter types.\n\nInstall the `python-multipart` package to receive uploaded files and/or form data.\n\nHere is an example code snippet:\n\n```python\nfrom typing import Annotated\n\nfrom fastapi import FastAPI, File, Form, UploadFile\n\napp = FastAPI()\n\n@app.post(\"/files/\")\nasync def create_file(\n    file: Annotated[bytes, File()],\n    fileb: Annotated[UploadFile, File()],\n    token: Annotated[str, Form()],\n):\n    return {\n        \"file_size\": len(file),\n        \"token\": token,\n        \"fileb_content_type\": fileb.content_type,\n    }\n```"
+    },
+    {
+      "id": "hard-file-form-ja",
+      "mode": "agent",
+      "lang": "ja",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 1,
+      "input_tokens": 3343,
+      "output_tokens": 399,
+      "seconds": 6.06,
+      "answer": "ファイルのアップロードと通常のフォームフィールドを同時に受け取るエンドポイントでは、パラメータの型として`File`と`Form`を使用します。\n\nまた、追加でインストールする必要のあるパッケージは、`python-multipart`です。\n\n```console\n$ uv add python-multipart\n```\n\n以下は、`File`と`Form`を同時に使用する例です。\n\n```python\nfrom typing import Annotated\n\nfrom fastapi import FastAPI, File, Form, UploadFile\n\napp = FastAPI()\n\n@app.post(\"/files/\")\nasync def create_file(\n    file: Annotated[bytes, File()],\n    fileb: Annotated[UploadFile, File()],\n    token: Annotated[str, Form()],\n):\n    return {\n        \"file_size\": len(file),\n        \"token\": token,\n        \"fileb_content_type\": fileb.content_type,\n    }\n```"
+    },
+    {
+      "id": "hard-hide-param",
+      "mode": "agent",
+      "lang": "en",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 1,
+      "input_tokens": 3741,
+      "output_tokens": 259,
+      "seconds": 3.6,
+      "answer": "To exclude a query parameter from the generated OpenAPI schema (and thus, from the automatic documentation systems), set the parameter `include_in_schema` of `Query` to `False`:\n\n```python\nfrom typing import Annotated\n\nfrom fastapi import FastAPI, Query\n\napp = FastAPI()\n\n@app.get(\"/items/\")\nasync def read_items(\n    hidden_query: Annotated[str | None, Query(include_in_schema=False)] = None,\n):\n    if hidden_query:\n        return {\"hidden_query\": hidden_query}\n    else:\n        return {\"hidden_query\": \"Not found\"}\n```"
+    },
+    {
+      "id": "hard-deprecated",
+      "mode": "agent",
+      "lang": "en",
+      "passed": true,
+      "facts_ok": true,
+      "evidence_ok": true,
+      "abstain_ok": null,
+      "tool_calls": 2,
+      "input_tokens": 8717,
+      "output_tokens": 727,
+      "seconds": 9.13,
+      "answer": "To mark an endpoint as deprecated in the docs, pass the parameter `deprecated=True`:\n\n```python\nfrom fastapi import FastAPI\n\napp = FastAPI()\n\n@app.get(\"/items/\", tags=[\"items\"])\nasync def read_items():\n    return [{\"name\": \"Foo\", \"price\": 42}]\n\n@app.get(\"/elements/\", tags=[\"items\"], deprecated=True)\nasync def read_elements():\n    return [{\"item_id\": \"Foo\"}]\n```\n\nTo add a summary and description to an endpoint, you can do so as follows:\n\n```python\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass Item(BaseModel):\n    name: str\n    description: str | None = None\n    price: float\n    tax: float | None = None\n    tags: set[str] = set()\n\n@app.post(\n    \"/items/\",\n    summary=\"Create an item\",\n    description=\"Create an item with all the information, name, description, price, tax and a set of unique tags\",\n)\nasync def create_item(item: Item) -> Item:\n    return item\n```"
+    }
+  ]
+}

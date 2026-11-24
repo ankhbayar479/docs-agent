@@ -84,6 +84,8 @@ def main(argv: list[str] | None = None) -> None:
     ev.add_argument("--mode", choices=["agent", "baseline", "both"], default="both")
     ev.add_argument("--limit", type=int, default=0, help="only the first N questions")
     ev.add_argument("--no-rerank", action="store_true")
+    ev.add_argument("--questions", default="questions", help="question file in eval/, without .yaml")
+    ev.add_argument("--out", default="results", help="report name in eval/, without extension")
     args = parser.parse_args(argv)
     settings = Settings()
 
@@ -113,7 +115,7 @@ def main(argv: list[str] | None = None) -> None:
         from .evaluate import load_cases, score, summarize, write_report
 
         agent, meta = _agent(settings, rerank=not args.no_rerank)
-        cases = load_cases(PROJECT_ROOT / "eval" / "questions.yaml")
+        cases = load_cases(PROJECT_ROOT / "eval" / f"{args.questions}.yaml")
         if args.limit:
             cases = cases[: args.limit]
         modes = ["baseline", "agent"] if args.mode == "both" else [args.mode]
@@ -135,6 +137,7 @@ def main(argv: list[str] | None = None) -> None:
             scores,
             summary,
             PROJECT_ROOT / "eval",
+            args.out,
             {
                 "chat_model": settings.chat_model,
                 "embed_model": meta.get("embed_model"),

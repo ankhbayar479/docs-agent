@@ -63,7 +63,9 @@ def test_agent_searches_reads_then_answers(corpus, settings):
     )
     result = build(corpus, settings, client).ask("How do I return 201?")
     assert result.answer == "Use status_code=201 in the decorator."
-    assert [s.tool for s in result.steps] == ["search_docs", "read_section"]
+    # The first search is seeded in code with the full question; then the model's own calls.
+    assert [s.tool for s in result.steps] == ["search_docs", "search_docs", "read_section"]
+    assert result.steps[0].args["query"] == "How do I return 201?"
     assert result.pages_seen[0] == "en/tutorial/response-status-code"
     assert (result.input_tokens, result.output_tokens) == (310, 45)
     # Tool results go back as Cohere tool messages with a document payload.
@@ -99,7 +101,7 @@ def test_bad_tool_arguments_become_an_error_message(corpus, settings):
         ]
     )
     result = build(corpus, settings, client).ask("?")
-    assert "unknown section_id" in result.steps[0].result_preview
+    assert "unknown section_id" in result.steps[-1].result_preview
 
 
 def test_baseline_passes_documents_and_makes_one_call(corpus, settings):
@@ -155,4 +157,15 @@ def test_total_tool_calls_are_capped_even_when_requested_in_parallel(corpus, set
     assert len(executed) == settings.max_tool_calls
     # Every requested call still gets a reply, so the conversation stays valid for the API.
     tool_msgs = [m for m in client.requests[-1]["messages"] if isinstance(m, dict) and m.get("role") == "tool"]
-    assert len(tool_msgs) == 20
+    assert len(tool_msgs) == 21  # 20 requested + the seeded first search
+
+
+def test_agent_gets_coverage_rules_but_baseline_does_not(corpus, settings):
+    from docs_agent.agent import AGENT_RULES
+
+    agent_client = ScriptedClient([answer("ok")])
+    build(corpus, settings, agent_client).ask("status 201?")
+    assert AGENT_RULES in agent_client.requests[0]["messages"][0]["content"]
+    base_client = ScriptedClient([answer("ok")])
+    build(corpus, settings, base_client).ask_baseline("status 201?")
+    assert AGENT_RULES not in base_client.requests[0]["messages"][0]["content"]

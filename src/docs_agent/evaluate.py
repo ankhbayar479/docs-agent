@@ -33,6 +33,7 @@ class Case:
     pages: list[str]
     facts: list[list[str]]
     abstain: bool = False
+    pages_all: bool = False  # every listed page must be found, not just one
 
 
 @dataclass
@@ -61,6 +62,7 @@ def load_cases(path: Path) -> list[Case]:
             pages=r.get("pages", []),
             facts=[[str(x) for x in group] for group in r.get("facts", [])],
             abstain=bool(r.get("abstain", False)),
+            pages_all=bool(r.get("pages_all", False)),
         )
         for r in raw
     ]
@@ -71,10 +73,11 @@ def facts_present(answer: str, facts: list[list[str]]) -> bool:
     return all(any(alt.lower() in low for alt in group) for group in facts)
 
 
-def evidence_found(result: AgentResult, pages: list[str]) -> bool:
+def evidence_found(result: AgentResult, pages: list[str], *, require_all: bool = False) -> bool:
     # Accept either language edition: "en/tutorial/cors" and "ja/tutorial/cors" are the same page.
     seen = {p.split("/", 1)[1] for p in result.pages_seen}
-    return any(p in seen for p in pages)
+    found = [p in seen for p in pages]
+    return all(found) if require_all else any(found)
 
 
 def abstained(answer: str) -> bool:
@@ -88,7 +91,7 @@ def score(case: Case, result: AgentResult) -> Score:
         abstain_ok: bool | None = ok
     else:
         facts_ok = facts_present(result.answer, case.facts)
-        evidence_ok = evidence_found(result, case.pages)
+        evidence_ok = evidence_found(result, case.pages, require_all=case.pages_all)
         abstain_ok = None
         ok = facts_ok and evidence_ok
     return Score(
@@ -131,9 +134,9 @@ def summarize(scores: list[Score]) -> dict[str, Any]:
     return out
 
 
-def write_report(scores: list[Score], summary: dict[str, Any], out_dir: Path, meta: dict[str, Any]) -> Path:
+def write_report(scores: list[Score], summary: dict[str, Any], out_dir: Path, name: str, meta: dict[str, Any]) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "results.json").write_text(
+    (out_dir / f"{name}.json").write_text(
         json.dumps(
             {"meta": meta, "summary": summary, "cases": [asdict(s) for s in scores]}, ensure_ascii=False, indent=2
         ),
@@ -170,6 +173,6 @@ def write_report(scores: list[Score], summary: dict[str, Any], out_dir: Path, me
             s = next((x for x in scores if x.id == qid and x.mode == m), None)
             cells.append("—" if s is None else ("pass" if s.passed else "fail") + f" ({s.tool_calls} calls)")
         lines.append(f"| {qid} | " + " | ".join(cells) + " |")
-    path = out_dir / "results.md"
+    path = out_dir / f"{name}.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path

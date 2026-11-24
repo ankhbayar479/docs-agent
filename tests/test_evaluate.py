@@ -33,3 +33,20 @@ def test_score_and_summary():
 
 def test_abstain_detects_could_not_find():
     assert abstained("I'm sorry, I couldn't find any information about Kubernetes autoscaling.")
+
+
+def test_pages_all_requires_every_page():
+    r = AgentResult(question="q", answer="a", mode="agent", pages_seen=["en/tutorial/bigger-applications"])
+    pages = ["tutorial/bigger-applications", "tutorial/response-status-code"]
+    assert evidence_found(r, pages)
+    assert not evidence_found(r, pages, require_all=True)
+    r.pages_seen.append("ja/tutorial/response-status-code")
+    assert evidence_found(r, pages, require_all=True)
+
+
+def test_hard_question_file_loads():
+    from docs_agent.config import PROJECT_ROOT
+    from docs_agent.evaluate import load_cases
+
+    cases = load_cases(PROJECT_ROOT / "eval" / "questions-hard.yaml")
+    assert len(cases) == 8 and any(c.pages_all for c in cases)

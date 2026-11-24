@@ -29,6 +29,17 @@ How to answer:
 - If the tutorial does not cover the question, say so instead of guessing.
 """
 
+# Extra rules for the agent only (the single-shot baseline has no tools to act on them).
+# Added after the hard question set showed the agent stopping at the first plausible page
+# and filling the rest from memory.
+AGENT_RULES = """
+Before you answer (coverage check):
+- Split the question into its parts (for example: which type, which package, which setting).
+- For each part, find the sentence or code in a tool result that supports it.
+- If any part is not supported yet, search for that part specifically (often it is on a different page).
+- Never answer a part from memory. If the tutorial does not cover a part, say so for that part.
+"""
+
 
 @dataclass
 class Step:
@@ -94,10 +105,11 @@ class DocsAgent:
         s = self.settings
         result = AgentResult(question=question, answer="", mode="agent")
         messages: list[Any] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT + AGENT_RULES},
             {"role": "user", "content": self._prepare(question)},
         ]
         started = time.perf_counter()
+        self._seed_search(question, messages, result)
         for _ in range(s.max_steps):
             resp = self._chat(messages=messages, tools=TOOL_SPECS)
             _add_usage(result, resp)
@@ -134,6 +146,35 @@ class DocsAgent:
             result.answer = _final_text(resp)
         result.seconds = round(time.perf_counter() - started, 2)
         return result
+
+    def _seed_search(self, question: str, messages: list[Any], result: AgentResult) -> None:
+        """Run the first search in code, with the full question, before the model acts.
+
+        The hard question set showed the agent writing narrow queries and then seeing less
+        context than the single-shot baseline. Seeding guarantees it starts with the same
+        evidence; the model then decides what else to look up.
+        """
+        args = {"query": question, "top_k": 5}
+        output = self.toolbox.call("search_docs", args)
+        _note_pages(result, output)
+        payload = json.dumps(output, ensure_ascii=False)
+        result.steps.append(Step("search_docs", args, payload[:160]))
+        call_id = "seed-search"
+        messages.append(
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": call_id,
+                        "type": "function",
+                        "function": {"name": "search_docs", "arguments": json.dumps(args)},
+                    }
+                ],
+            }
+        )
+        messages.append(
+            {"role": "tool", "tool_call_id": call_id, "content": [{"type": "document", "document": {"data": payload}}]}
+        )
 
     def ask_baseline(self, question: str, top_k: int = 5) -> AgentResult:
         """Single-shot RAG: one search with the raw question, then answer. No planning, no follow-up reads."""
